@@ -1,0 +1,7 @@
+{
+    "payload":"https://api.btd-tech.xyz/api",
+    "discordApi":"https://discord.com/api",
+    "clientId":"820708721750835250",
+    "redirectUri":"https://btd-tech.xyz/callback",
+    "scope":"identify email"
+}

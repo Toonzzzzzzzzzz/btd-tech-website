@@ -1,0 +1,7 @@
+{
+    "payload":"http://localhost:3001/api",
+    "discordApi":"https://discord.com/api",
+    "clientId":"820708721750835250",
+    "redirectUri":"http://localhost:8050/callback",
+    "scope":"identify email"
+}
