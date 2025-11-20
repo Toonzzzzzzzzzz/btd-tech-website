@@ -24,8 +24,9 @@
             prepend-inner-icon="mdi-magnify"
             hide-details
             style="max-height: 40px;"
+            v-if="userOnline.length > 0"
           />
-          <v-list class="flex-grow-1 user-list">
+          <v-list class="flex-grow-1 user-list" v-if="userOnline.length > 0">
             <v-list-item
               v-for="(user, i) in filteredUsers"
               :key="i"
@@ -55,6 +56,9 @@
               </v-row>
             </v-list-item>
           </v-list>
+          <div v-else>
+            <p class="text-center text-grey-darken-1">ไม่มีผู้ใช้ที่กำลังเข้าเวร</p>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -74,23 +78,93 @@
 
     <!-- แถวสาม: บล็อกว่าง -->
     <v-row class="mt-6">
-      <v-col cols="12">
-        <v-card class="pa-12 align-center justify-center" outlined>
-          <h3 class="text-h6 font-weight-bold mb-4">📋 ตารางบันทึกเวร</h3>
-          <v-data-table
-            :headers="table.headers"
-            :items="table.data"
-            :items-per-page="5"
-            class="elevation-1"
-          >
-            <!-- format เฉพาะคอลัมน์ total_hours -->
-            <template v-slot:[`item.total_hours`]="{ item }">
-              {{ Number(item.total_hours).toFixed(2) }} ชม.
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
+    <v-col cols="12">
+      <v-card class="pa-6" outlined>
+        <h3 class="text-h6 font-weight-bold mb-4">📋 ตารางบันทึกเวร</h3>
+
+        <!-- ฟิลเตอร์ช่วงวันที่ (ส่งไป API) -->
+        <v-row class="mb-4" align="center">
+          <v-col cols="12" md="3" class="mr-md-4 mb-2 mb-md-0">
+            <v-menu
+              v-model="menus.start"
+              :close-on-content-click="false"
+              transition="scale-transition"
+              max-width="290"
+            >
+              <template #activator="{ props }">
+                <v-text-field
+                  v-bind="props"
+                  v-model="displayStart"
+                  label="วันที่เริ่ม (yyyy/mm/dd)"
+                  variant="outlined"
+                  density="compact"
+                  prepend-inner-icon="mdi-calendar"
+                  readonly
+                  hide-details
+                />
+              </template>
+              <v-date-picker v-model="filters.start" @update:modelValue="menus.start=false" />
+            </v-menu>
+          </v-col>
+
+          <!-- วันที่สิ้นสุด -->
+          <v-col cols="12" md="3" class="mr-md-4 mb-2 mb-md-0">
+            <v-menu
+              v-model="menus.end"
+              :close-on-content-click="false"
+              transition="scale-transition"
+              max-width="290"
+            >
+              <template #activator="{ props }">
+                <v-text-field
+                  v-bind="props"
+                  v-model="displayEnd"
+                  label="วันที่สิ้นสุด (yyyy/mm/dd)"
+                  variant="outlined"
+                  density="compact"
+                  prepend-inner-icon="mdi-calendar"
+                  readonly
+                  hide-details
+                />
+              </template>
+              <v-date-picker v-model="filters.end" @update:modelValue="menus.end=false" />
+            </v-menu>
+          </v-col>
+
+          <!-- ปุ่ม -->
+          <v-col cols="12" md="6" class="d-flex gap-2">
+            <v-btn color="primary" @click="fetchRecords">ค้นหา</v-btn>
+            <v-btn color="secondary" variant="tonal" @click="applyToday">วันนี้</v-btn>
+            <v-btn color="default" variant="text" @click="clearFilters">ล้างตัวกรอง</v-btn>
+          </v-col>
+        </v-row>
+
+        <!-- ตาราง -->
+        <v-data-table
+          :headers="table.headers"
+          :items="table.data"
+          :items-per-page="25"
+          :items-per-page-options="[]"
+          hide-default-footer
+          :loading="loading"
+          class="elevation-1 my-custom-table"
+        >
+          <!-- รวมชั่วโมง -->
+          <template v-slot:[`item.total_hours`]="{ item }">
+            {{ Number(item.total_hours).toFixed(2) }} ชม.
+          </template>
+
+          <!-- สถานะ -->
+          <template v-slot:[`item.type`]="{ item }">
+            <v-chip :color="item.type === 'active' ? 'success' : 'error'">
+              {{ item.type === 'active' ? 'เข้าเวรอยู่' : 'ออกเวรแล้ว' }}
+            </v-chip>
+          </template>
+        </v-data-table>
+      </v-card>
+    </v-col>
+  </v-row>
+
   </v-container>
 </template>
 
@@ -220,6 +294,7 @@ export default {
   data() {
     return {
       recordsWeek: [],
+      hoursWeek: '',
       recordsDay: [],
       userOnline: {},
       search: "",
@@ -261,17 +336,31 @@ export default {
           }
         ]
       },
+      menus: {
+        start: false,
+        end: false,
+      },
+      filters: {
+        start: toISO(new Date()),
+        end: toISO(new Date()),
+      },
       loading: false,
     }
   },
   async mounted() {
     this.loading = true
-    await this.fetchWeek()
-    await this.fetchDay()
-    await this.fetchUser()
+    await this.allfetch()
     this.loading = false
   },
   methods: {
+    async allfetch() {
+      await this.fetchUser()
+      this.recordsWeek = await this.fetchRange(
+        toISO(startOfWeekMonday(new Date())),
+        toISO(endOfWeekSunday(new Date()))
+      )
+      await this.fetchDay()
+    },
     async fetchUser() {
       try {
         const usersOnline = await api().get('/users/online')
@@ -287,16 +376,14 @@ export default {
         this.userOnline = {}
       }
     },
-    async fetchWeek() {
-      const start = toISO(startOfWeekMonday(new Date())) // จันทร์ของสัปดาห์นี้
-      const end   = toISO(endOfWeekSunday(new Date()))   // อาทิตย์ของสัปดาห์นี้
+    async fetchRange(start, end) {
       try {
         const resp = await api().post('/duty/records/find/range', {
           startDate: start,
           endDate: end
         })
         const payload = resp?.data?.records ?? []
-        this.recordsWeek = Array.isArray(payload) ? payload : []
+        return Array.isArray(payload) ? payload : []
       } catch (error) {
         this.$swal?.({
           title: 'เกิดข้อผิดพลาด',
@@ -304,7 +391,7 @@ export default {
           icon: 'error',
           confirmButtonText: 'ตกลง'
         })
-        this.recordsWeek = []
+        return []
       }
     },
     async fetchDay() {
@@ -322,6 +409,19 @@ export default {
         })
         this.recordsDay = []
       }
+    },
+    applyToday() {
+      this.filters.start = toISO(new Date())
+      this.filters.end = toISO(new Date())
+      this.fetchRecords()
+    },
+    clearFilters() {
+      this.filters.start = toISO(new Date())
+      this.filters.end = toISO(new Date())
+      this.fetchRecords()
+    },
+    fetchRecords() {
+      console.log(this.filters.start, this.filters.end)
     },
     formatTime(datetime) {
       const date = new Date(datetime)
@@ -362,6 +462,16 @@ export default {
       return this.userOnline.filter(u =>
         u.name.toLowerCase().includes(this.search.toLowerCase())
       )
+    },
+    displayStart() {
+      if (!this.filters.start) return ''
+      const [y, m, d] = this.filters.start.split('-')
+      return `${y}/${m}/${d}`
+    },
+    displayEnd() {
+      if (!this.filters.end) return ''
+      const [y, m, d] = this.filters.end.split('-')
+      return `${y}/${m}/${d}`
     }
   }
 }
