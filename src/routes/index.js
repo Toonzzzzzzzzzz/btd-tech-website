@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../pages/Login.vue'
 import CallbackDiscord from '../pages/CallbackDiscord.vue'
 import Dashboard from '../pages/Dashboard.vue'
+import EventSchedule from '../pages/EventSchedule.vue'
+import EventRegistration from '../pages/EventRegistration.vue'
+import RegistrationHistory from '../pages/RegistrationHistory.vue'
 
 const routes = [
   {
@@ -27,6 +30,24 @@ const routes = [
     name: 'Dashboard',
     component: Dashboard,
     meta: { requiresAuth: true, showTopbar: true, title: 'แดชบอร์ด' }
+  },
+  {
+    path: '/event-schedule',
+    name: 'EventSchedule',
+    component: EventSchedule,
+    meta: { requiresAuth: true, showTopbar: true, title: 'จัดตารางอีเว้นท์' }
+  },
+  {
+    path: '/event-registration',
+    name: 'EventRegistration',
+    component: EventRegistration,
+    meta: { requiresAuth: true, showTopbar: true, title: 'ลงทะเบียนกิจกรรม' }
+  },
+  {
+    path: '/registration-history',
+    name: 'RegistrationHistory',
+    component: RegistrationHistory,
+    meta: { requiresAuth: true, showTopbar: true, title: 'ประวัติการลงทะเบียน' }
   }
 ]
 
@@ -35,7 +56,7 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   if (to.meta.title) {
     document.title = `BTD-Tech | ${to.meta.title}`
   } else {

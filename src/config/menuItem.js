@@ -12,6 +12,21 @@ export default (role) => {
         roles: ["admin"] // ใครที่ไม่ใช่ admin จะไม่เห็น
       },
       {
+        title: "ตารางอีเว้นท์",
+        icon: "mdi-calendar-blank",
+        route: "/event-schedule"
+      },
+      {
+        title: "ลงทะเบียนกิจกรรม",
+        icon: "mdi-account-plus",
+        route: "/event-registration"
+      },
+      {
+        title: "ประวัติการลงทะเบียน",
+        icon: "mdi-history",
+        route: "/registration-history"
+      },
+      {
         title: "ตั้งค่า",
         icon: "mdi-cog",
         route: "/settings"
